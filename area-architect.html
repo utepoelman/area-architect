@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Area Architect - Algebra Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .grid-box { transition: all 0.3s ease; }
+        .selected-factor {
+            background-color: #2563eb !important;
+            color: white !important;
+            border-color: #3b82f6 !important;
+        }
+        .reveal-pulse {
+            animation: pulse-glow 0.5s ease-out;
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+        }
+        @keyframes pulse-glow {
+            0% { transform: scale(0.95); background-color: #3b82f6; }
+            100% { transform: scale(1); background-color: #1e293b; }
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            opacity: 0.85;
+            animation: fall 3s linear infinite;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-50px) rotate(0deg); }
+            100% { transform: translateY(100vh) rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans select-none relative overflow-x-hidden">
+
+    <div id="setup-modal" class="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-md w-full">
+            <h2 class="text-3xl font-black mb-2 text-center bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Area Architect</h2>
+            <p class="text-slate-400 text-sm text-center mb-6">Configure your algebra layout parameters</p>
+            
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Game Mode</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button id="mode-p2p" onclick="setGameMode('p2p')" class="p-3 bg-blue-600 rounded-xl font-bold border-2 border-blue-400 cursor-pointer text-sm transition">Pass & Play</button>
+                    <button id="mode-ai" onclick="setGameMode('ai')" class="p-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold border-2 border-transparent cursor-pointer text-sm transition">vs. Computer</button>
+                </div>
+            </div>
+
+            <div id="names-config" class="space-y-3 mb-5">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Player 1 Name</label>
+                    <input id="input-p1-name" type="text" value="Player 1" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+                <div id="p2-name-box">
+                    <label class="block text-xs text-slate-400 mb-1">Player 2 Name</label>
+                    <input id="input-p2-name" type="text" value="Player 2" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <div id="ai-config" class="mb-5 hidden">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Difficulty Level</label>
+                <select id="ai-level-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200 font-medium">
+                    <option value="1">Level 1: Novice</option>
+                    <option value="2" selected>Level 2: Intermediate</option>
+                    <option value="3">Level 3: Expert</option>
+                </select>
+            </div>
+
+            <div id="timer-config-box" class="mb-6">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Turn Time Limit</label>
+                <select id="timer-select" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm focus:outline-none focus:border-blue-500 text-slate-200 font-medium">
+                    <option value="0" selected>Unlimited Time</option>
+                    <option value="120">2 Minutes</option>
+                    <option value="30">30 Seconds</option>
+                </select>
+            </div>
+
+            <button onclick="startGame()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 font-bold text-white rounded-xl shadow-lg transition tracking-wide cursor-pointer text-sm">
+                Launch Environment
+            </button>
+        </div>
+    </div>
+
+    <div id="celebration-modal" class="fixed inset-0 bg-slate-950/85 z-40 flex items-center justify-center p-4 hidden backdrop-blur-md">
+        <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+        <div class="bg-slate-800 text-center p-8 rounded-2xl border border-slate-700 shadow-2xl max-w-sm w-full relative z-10 transform transition scale-100">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 id="winner-headline" class="text-3xl font-black text-white mb-2">Victory!</h2>
+            <p id="winner-subline" class="text-slate-300 text-sm mb-6">Final Score Details Here</p>
+            <button onclick="backToSetup()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 font-bold text-white rounded-lg cursor-pointer transition text-sm">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-4 sm:p-6">
+        <header class="flex flex-col sm:flex-row justify-between items-center mb-8 bg-slate-800 p-4 rounded-xl shadow-lg border border-slate-700 gap-4">
+            <div>
+                <h1 class="text-3xl font-black bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Area Architect</h1>
+                <p class="text-slate-400 text-sm">Match dimensions to claim quadratic plots.</p>
+            </div>
+            <div class="flex flex-wrap gap-4 text-base sm:text-lg font-semibold justify-center">
+                <div class="bg-blue-600/20 px-4 py-2 rounded-lg border border-blue-500 text-blue-400">
+                    <span id="lbl-p1">P1</span>: <span id="p1-score" class="font-bold text-white">0</span>
+                </div>
+                <div class="bg-purple-600/20 px-4 py-2 rounded-lg border border-purple-500 text-purple-400">
+                    <span id="lbl-p2">P2</span>: <span id="p2-score" class="font-bold text-white">0</span>
+                </div>
+                <div class="bg-amber-600/20 px-4 py-2 rounded-lg border border-amber-500 text-amber-400">
+                    Turn: <span id="current-player" class="font-bold text-white">-</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 flex flex-col gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <h2 class="text-xl font-bold text-slate-300">Available Plots (Select One First)</h2>
+                    <button onclick="backToSetup()" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded text-slate-300 cursor-pointer self-start sm:self-auto">Main Menu</button>
+                </div>
+
+                <div id="timer-container" class="w-full hidden bg-slate-950 p-2 rounded-lg border border-slate-800 flex items-center gap-3">
+                    <div class="text-xs font-mono font-bold text-rose-400 bg-rose-950/40 px-2 py-0.5 rounded border border-rose-900/60 w-14 text-center" id="timer-countdown">00s</div>
+                    <div class="flex-1 bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div id="timer-progress" class="bg-gradient-to-r from-red-500 to-amber-500 h-full w-full transition-all duration-1000 ease-linear"></div>
+                    </div>
+                </div>
+
+                <div id="plots-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-4"></div>
+            </div>
+
+            <div id="workspace-card" class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold mb-6 text-slate-300 flex justify-between items-center">
+                        <span>Workspace</span>
+                        <span id="spin-status" class="text-xs text-amber-400 font-mono hidden animate-pulse">SPINNING...</span>
+                    </h2>
+                    
+                    <div class="w-68 h-68 mx-auto mb-6 relative bg-slate-900/40 rounded-xl p-4 border border-slate-800">
+                        <div class="absolute top-4 left-20 right-4 h-10 flex gap-1">
+                            <div id="hdr-top-x" class="w-1/2 bg-slate-950 border border-slate-700 rounded flex items-center justify-center font-mono font-bold text-cyan-400 text-sm">?</div>
+                            <div id="hdr-top-c" class="w-1/2 bg-slate-950 border border-slate-700 rounded flex items-center justify-center font-mono font-bold text-cyan-400 text-sm">?</div>
+                        </div>
+
+                        <div class="absolute top-16 bottom-4 left-4 w-14 flex flex-col gap-1">
+                            <div id="hdr-left-x" class="h-1/2 bg-slate-950 border border-slate-700 rounded flex items-center justify-center font-mono font-bold text-purple-400 text-sm">?</div>
+                            <div id="hdr-left-c" class="h-1/2 bg-slate-950 border border-slate-700 rounded flex items-center justify-center font-mono font-bold text-purple-400 text-sm">?</div>
+                        </div>
+
+                        <div class="absolute top-16 bottom-4 left-20 right-4 bg-slate-950 rounded-lg border-2 border-slate-700 grid grid-cols-2 grid-rows-2 p-1 gap-1 text-center font-mono text-sm shadow-inner">
+                            <div id="cell-tl" class="grid-box bg-slate-900/90 flex items-center justify-center rounded text-slate-500">?</div>
+                            <div id="cell-tr" class="grid-box bg-slate-900/90 flex items-center justify-center rounded text-slate-500">?</div>
+                            <div id="cell-bl" class="grid-box bg-slate-900/90 flex items-center justify-center rounded text-slate-500">?</div>
+                            <div id="cell-br" class="grid-box bg-slate-900/90 flex items-center justify-center rounded text-slate-500">?</div>
+                        </div>
+                    </div>
+
+                    <div id="calculation-output" class="text-center p-3 bg-slate-950 rounded-lg border border-slate-800 min-h-14 flex items-center justify-center font-mono text-sm mb-6 text-slate-400">
+                        Awaiting system allocation...
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">Available Dimensions Pool</h3>
+                    <div id="factors-pool" class="grid grid-cols-3 gap-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const baseFactorLibrary = ["x + 2", "x + 3", "x - 2", "x - 3", "2x + 1", "2x + 2", "2x + 3", "x + 1", "x - 1", "2x - 1", "2x - 3"];
+
+        let state = {
+            gameMode: 'p2p',
+            aiLevel: 2,
+            timeLimitSetting: 0, 
+            timeRemaining: 0,
+            timerIntervalId: null,
+            playerNames: { 1: "Player 1", 2: "Player 2" },
+            currentPlayer: 1,
+            scores: { 1: 0, 2: 0 },
+            plots: [],
+            pool: [],
+            selectedPlotId: null,
+            selectedTopIdx: null,
+            selectedLeftIdx: null,
+            isSpinning: false
+        };
+
+        function setGameMode(mode) {
+            state.gameMode = mode;
+            document.getElementById('mode-p2p').className = mode === 'p2p' ? 'p-3 bg-blue-600 rounded-xl font-bold border-2 border-blue-400 text-sm cursor-pointer' : 'p-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold border-2 border-transparent text-sm cursor-pointer';
+            document.getElementById('mode-ai').className = mode === 'ai' ? 'p-3 bg-blue-600 rounded-xl font-bold border-2 border-blue-400 text-sm cursor-pointer' : 'p-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold border-2 border-transparent text-sm cursor-pointer';
+            
+            if(mode === 'ai') {
+                document.getElementById('p2-name-box').classList.add('hidden');
+                document.getElementById('ai-config').classList.remove('hidden');
+                document.getElementById('timer-config-box').classList.add('hidden');
+                document.getElementById('timer-select').value = "0";
+            } else {
+                document.getElementById('p2-name-box').classList.remove('hidden');
+                document.getElementById('ai-config').classList.add('hidden');
+                document.getElementById('timer-config-box').classList.remove('hidden');
+            }
+        }
+
+        function generateProceduralPlots() {
+            let tracks = [];
+            let iterations = 0;
+            
+            while(tracks.length < 12 && iterations < 500) {
+                iterations++;
+                let f1 = baseFactorLibrary[Math.floor(Math.random() * baseFactorLibrary.length)];
+                let f2 = baseFactorLibrary[Math.floor(Math.random() * baseFactorLibrary.length)];
+                
+                let p1 = parseFactor(f1);
+                let p2 = parseFactor(f2);
+                
+                let a = p1.xCoef * p2.xCoef;
+                let b = (p1.constVal * p2.xCoef) + (p2.constVal * p1.xCoef);
+                let c = p1.constVal * p2.constVal;
+                
+                let quadText = "";
+                if (a === 1) quadText += "x²";
+                else quadText += `${a}x²`;
+                
+                if (b > 0) quadText += ` + ${b}x`;
+                else if (b < 0) quadText += ` - ${Math.abs(b)}x`;
+                
+                if (c > 0) quadText += ` + ${c}`;
+                else if (c < 0) quadText += ` - ${Math.abs(c)}`;
+                
+                quadText = quadText.replace("+ 1x", "+ x").replace("- 1x", "- x");
+
+                if(!tracks.some(p => p.text === quadText)) {
+                    let pointWeights = 10;
+                    if(a > 1) pointWeights += 10;
+                    if(p1.constVal < 0 || p2.constVal < 0) pointWeights += 5;
+                    if(Math.abs(b) > 4 || Math.abs(c) > 4) pointWeights += 5;
+                    
+                    tracks.push({
+                        id: tracks.length + 1,
+                        text: quadText,
+                        f1: f1,
+                        f2: f2,
+                        pts: pointWeights,
+                        claimed: null
+                    });
+                }
+            }
+            state.plots = tracks;
+        }
+
+        function startGame() {
+            state.playerNames[1] = document.getElementById('input-p1-name').value.trim() || "Player 1";
+            if (state.gameMode === 'p2p') {
+                state.playerNames[2] = document.getElementById('input-p2-name').value.trim() || "Player 2";
+            } else {
+                state.playerNames[2] = "Computer";
+                state.aiLevel = parseInt(document.getElementById('ai-level-select').value);
+            }
+
+            state.timeLimitSetting = parseInt(document.getElementById('timer-select').value);
+
+            document.getElementById('lbl-p1').innerText = state.playerNames[1];
+            document.getElementById('lbl-p2').innerText = state.playerNames[2];
+            document.getElementById('setup-modal').classList.add('hidden');
+            
+            state.currentPlayer = Math.random() < 0.5 ? 1 : 2;
+            state.scores = { 1: 0, 2: 0 };
+            state.selectedPlotId = null;
+            state.selectedTopIdx = null;
+            state.selectedLeftIdx = null;
+            state.isSpinning = false;
+
+            generateProceduralPlots();
+            generateGuaranteedPool();
+            renderPlots();
+            renderPool();
+            updateUI();
+            
+            initiateTurnCycle();
+        }
+
+        function backToSetup() {
+            stopTurnClock();
+            document.getElementById('celebration-modal').classList.add('hidden');
+            document.getElementById('setup-modal').classList.remove('hidden');
+            stopConfetti();
+        }
+
+        function initiateTurnCycle() {
+            stopTurnClock();
+            
+            let activeName = state.playerNames[state.currentPlayer];
+            
+            if(state.gameMode === 'ai' && state.currentPlayer === 2) {
+                document.getElementById('timer-container').classList.add('hidden');
+                triggerAIMove();
+                return;
+            }
+
+            if(state.timeLimitSetting > 0) {
+                state.timeRemaining = state.timeLimitSetting;
+                document.getElementById('timer-container').classList.remove('hidden');
+                updateTimerVisuals();
+                
+                state.timerIntervalId = setInterval(() => {
+                    state.timeRemaining--;
+                    updateTimerVisuals();
+                    
+                    if(state.timeRemaining <= 0) {
+                        handleTurnForfeitTimeout();
+                    }
+                }, 1000);
+            } else {
+                document.getElementById('timer-container').classList.add('hidden');
+            }
+
+            document.getElementById('calculation-output').innerText = `${activeName}, select an available plot to start your turn.`;
+        }
+
+        function updateTimerVisuals() {
+            document.getElementById('timer-countdown').innerText = `${state.timeRemaining}s`;
+            let percentage = (state.timeRemaining / state.timeLimitSetting) * 100;
+            document.getElementById('timer-progress').style.width = `${percentage}%`;
+        }
+
+        function stopTurnClock() {
+            if(state.timerIntervalId) {
+                clearInterval(state.timerIntervalId);
+                state.timerIntervalId = null;
+            }
+        }
+
+        function handleTurnForfeitTimeout() {
+            stopTurnClock();
+            state.isSpinning = false;
+            document.getElementById('spin-status').classList.add('hidden');
+            
+            let failedPlayer = state.playerNames[state.currentPlayer];
+            document.getElementById('calculation-output').innerHTML = `<span class="text-rose-400 font-bold">⏰ TIME EXPIRED! ${failedPlayer} forfeited their turn.</span>`;
+            
+            setTimeout(() => {
+                state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+                state.selectedPlotId = null;
+                state.selectedTopIdx = null;
+                state.selectedLeftIdx = null;
+                
+                renderPlots();
+                renderPool();
+                clearMatrixUI();
+                updateUI();
+                initiateTurnCycle();
+            }, 2000);
+        }
+
+        function generateGuaranteedPool() {
+            state.pool = [];
+            let unclaimed = state.plots.filter(p => p.claimed === null);
+            if (unclaimed.length === 0) return;
+            
+            let seedPlot = unclaimed[Math.floor(Math.random() * unclaimed.length)];
+            state.pool.push(seedPlot.f1);
+            state.pool.push(seedPlot.f2);
+
+            while(state.pool.length < 6) {
+                state.pool.push(baseFactorLibrary[Math.floor(Math.random() * baseFactorLibrary.length)]);
+            }
+            for (let i = state.pool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [state.pool[i], state.pool[j]] = [state.pool[j], state.pool[i]];
+            }
+        }
+
+        function renderPlots() {
+            const grid = document.getElementById('plots-grid');
+            grid.innerHTML = '';
+            state.plots.forEach(plot => {
+                let statusStyle = "bg-slate-800 border-slate-700 hover:border-blue-500 cursor-pointer";
+                if (plot.id === state.selectedPlotId) statusStyle = "bg-blue-950 border-blue-400 scale-102 ring-2 ring-blue-500/50";
+                if (plot.claimed === 1) statusStyle = "bg-blue-900/30 border-blue-600 opacity-40 pointer-events-none line-through text-blue-300";
+                if (plot.claimed === 2) statusStyle = "bg-purple-900/30 border-purple-600 opacity-40 pointer-events-none line-through text-purple-300";
+
+                grid.innerHTML += `
+                    <div onclick="${state.isSpinning || (state.gameMode === 'ai' && state.currentPlayer === 2) ? '' : `selectPlot(${plot.id})`}" class="grid-box border p-4 rounded-xl shadow text-center transition ${statusStyle}">
+                        <div class="text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">${plot.pts} Points</div>
+                        <div class="text-lg font-mono font-bold">${plot.text}</div>
+                        ${plot.claimed ? `<div class="text-[11px] font-bold mt-1 text-slate-300">By ${state.playerNames[plot.claimed]}</div>` : ''}
+                    </div>
+                `;
+            });
+        }
+
+        function renderPool() {
+            const container = document.getElementById('factors-pool');
+            container.innerHTML = '';
+            state.pool.forEach((factor, idx) => {
+                let isSelected = (state.selectedTopIdx === idx || state.selectedLeftIdx === idx);
+                let disabledAttr = (state.isSpinning || !state.selectedPlotId || (state.gameMode === 'ai' && state.currentPlayer === 2)) ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : '';
+                
+                container.innerHTML += `
+                    <button onclick="selectFactorFromPool(${idx})" ${disabledAttr} class="p-2 sm:p-3 bg-slate-700 border border-slate-600 rounded-lg font-mono font-bold hover:bg-slate-600 transition text-xs sm:text-sm cursor-pointer ${isSelected ? 'selected-factor' : ''}">
+                        ${factor}
+                    </button>
+                `;
+            });
+        }
+
+        function selectPlot(id) {
+            state.selectedPlotId = id;
+            state.selectedTopIdx = null;
+            state.selectedLeftIdx = null;
+            renderPlots();
+            renderPool();
+            clearMatrixUI();
+            document.getElementById('calculation-output').innerText = "Plot selected. Choose two factor tiles.";
+        }
+
+        function clearMatrixUI() {
+            ['hdr-top-x','hdr-top-c','hdr-left-x','hdr-left-c','cell-tl','cell-tr','cell-bl','cell-br'].forEach(id => {
+                document.getElementById(id).innerText = "?";
+                document.getElementById(id).className = document.getElementById(id).className.replace('reveal-pulse', '');
+            });
+        }
+
+        function selectFactorFromPool(idx) {
+            if (state.isSpinning || !state.selectedPlotId) return;
+
+            if (state.selectedTopIdx === idx) { state.selectedTopIdx = null; renderPool(); updatePreRevealUI(); return; }
+            if (state.selectedLeftIdx === idx) { state.selectedLeftIdx = null; renderPool(); updatePreRevealUI(); return; }
+
+            if (state.selectedTopIdx === null) {
+                state.selectedTopIdx = idx;
+                renderPool();
+                updatePreRevealUI();
+            } else if (state.selectedLeftIdx === null) {
+                state.selectedLeftIdx = idx;
+                renderPool();
+                stopTurnClock(); 
+                triggerPokeyMachineReveal();
+            }
+        }
+
+        function updatePreRevealUI() {
+            clearMatrixUI();
+            const output = document.getElementById('calculation-output');
+            if (state.selectedTopIdx !== null) {
+                let f = parseFactor(state.pool[state.selectedTopIdx]);
+                document.getElementById('hdr-top-x').innerText = f.xStr;
+                document.getElementById('hdr-top-c').innerText = f.cStr;
+                output.innerText = "Top factor selected. Pick left factor.";
+            } else {
+                output.innerText = "Choose two dimension factor tiles.";
+            }
+        }
+
+        function triggerPokeyMachineReveal() {
+            state.isSpinning = true;
+            renderPool();
+            renderPlots();
+            
+            document.getElementById('spin-status').classList.remove('hidden');
+            
+            let fTop = parseFactor(state.pool[state.selectedTopIdx]);
+            let fLeft = parseFactor(state.pool[state.selectedLeftIdx]);
+
+            document.getElementById('hdr-left-x').innerText = fLeft.xStr;
+            document.getElementById('hdr-left-c').innerText = fLeft.cStr;
+
+            let tl_val = (fTop.xCoef * fLeft.xCoef === 1) ? "x²" : `${fTop.xCoef * fLeft.xCoef}x²`;
+            let tr_val = formatSign(`${fTop.constVal * fLeft.xCoef}x`);
+            let bl_val = formatSign(`${fLeft.constVal * fTop.xCoef}x`);
+            let br_val = formatSign(`${fTop.constVal * fLeft.constVal}`);
+
+            let combinedX = (fTop.constVal * fLeft.xCoef) + (fLeft.constVal * fTop.xCoef);
+            let xPart = combinedX === 0 ? "" : (combinedX > 0 ? ` + ${combinedX}x` : ` - ${Math.abs(combinedX)}x`);
+            if (xPart === " + 1x") xPart = " + x";
+            if (xPart === " - 1x") xPart = " - x";
+            let constPart = fTop.constVal * fLeft.constVal >= 0 ? ` + ${fTop.constVal * fLeft.constVal}` : ` - ${Math.abs(fTop.constVal * fLeft.constVal)}`;
+            let finalStr = `${fTop.xCoef * fLeft.xCoef === 1 ? "x²" : `${fTop.xCoef * fLeft.xCoef}x²`}${xPart}${constPart}`;
+
+            setTimeout(() => revealCell('cell-tl', tl_val, "Top-Left"), 0);
+            setTimeout(() => revealCell('cell-tr', tr_val, "Top-Right"), 750);
+            setTimeout(() => revealCell('cell-bl', bl_val, "Bottom-Left"), 1500);
+            setTimeout(() => revealCell('cell-br', br_val, "Bottom-Right"), 2250);
+
+            setTimeout(() => {
+                document.getElementById('calculation-output').innerHTML = `Expanded Form: <strong class="text-amber-400 font-bold ml-1 text-base">${finalStr}</strong>`;
+            }, 3000);
+
+            setTimeout(() => { evaluateAutomatedResult(finalStr); }, 4250);
+        }
+
+        function revealCell(id, value, pos) {
+            let el = document.getElementById(id);
+            el.innerText = value;
+            el.className += " reveal-pulse";
+            document.getElementById('calculation-output').innerText = `Expanding: ${pos}...`;
+        }
+
+        function formatSign(val) { return parseInt(val) >= 0 ? "+" + val : val; }
+
+        function evaluateAutomatedResult(calculatedString) {
+            let activePlot = state.plots.find(p => p.id === state.selectedPlotId);
+            let tFactor = state.pool[state.selectedTopIdx];
+            let lFactor = state.pool[state.selectedLeftIdx];
+            
+            let isMatch = (tFactor === activePlot.f1 && lFactor === activePlot.f2) ||
+                          (tFactor === activePlot.f2 && lFactor === activePlot.f1);
+
+            if (isMatch) {
+                activePlot.claimed = state.currentPlayer;
+                state.scores[state.currentPlayer] += activePlot.pts;
+                document.getElementById('calculation-output').innerHTML = `<span class="text-emerald-400 font-bold">🎉 SUCCESS! Match Confirmed! (+${activePlot.pts} pts)</span>`;
+            } else {
+                document.getElementById('calculation-output').innerHTML = `<span class="text-rose-400 font-bold">❌ NO MATCH! Turn Forfeited.</span>`;
+            }
+
+            replaceUsedFactors(state.selectedTopIdx, state.selectedLeftIdx);
+
+            setTimeout(() => {
+                state.isSpinning = false;
+                document.getElementById('spin-status').classList.add('hidden');
+                
+                state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
+                state.selectedPlotId = null;
+                state.selectedTopIdx = null;
+                state.selectedLeftIdx = null;
+                
+                renderPlots();
+                renderPool();
+                clearMatrixUI();
+                updateUI();
+                
+                if(!checkGameOver()) {
+                    initiateTurnCycle();
+                }
+            }, 1500);
+        }
+
+        function triggerAIMove() {
+            document.getElementById('calculation-output').innerText = "Computer is scanning structures...";
+            
+            let unclaimed = state.plots.filter(p => p.claimed === null);
+            let playableOptions = [];
+
+            unclaimed.forEach(plot => {
+                let tPool = [...state.pool];
+                let idx1 = tPool.indexOf(plot.f1);
+                if(idx1 !== -1) {
+                    tPool.splice(idx1, 1);
+                    let idx2 = tPool.indexOf(plot.f2);
+                    if(idx2 !== -1) {
+                        let poolIdx1 = state.pool.indexOf(plot.f1);
+                        let poolIdx2 = state.pool.lastIndexOf(plot.f2);
+                        if(poolIdx1 === poolIdx2) poolIdx2 = state.pool.indexOf(plot.f2, poolIdx1 + 1);
+                        
+                        playableOptions.push({ plot: plot, top: poolIdx1, left: poolIdx2 });
+                    }
+                }
+            });
+
+            if(playableOptions.length === 0) {
+                setTimeout(() => {
+                    alert("The Computer cannot form any available plot! Turn skipped.");
+                    state.currentPlayer = 1;
+                    updateUI();
+                    initiateTurnCycle();
+                }, 1000);
+                return;
+            }
+
+            let chosenSelection = null;
+            if (state.aiLevel === 1) {
+                playableOptions.sort((a,b) => a.plot.pts - b.plot.pts);
+                chosenSelection = playableOptions[0];
+            } else if (state.aiLevel === 2) {
+                chosenSelection = playableOptions[Math.floor(Math.random() * playableOptions.length)];
+            } else {
+                playableOptions.sort((a,b) => b.plot.pts - a.plot.pts);
+                chosenSelection = playableOptions[0];
+            }
+
+            setTimeout(() => {
+                state.selectedPlotId = chosenSelection.plot.id;
+                state.selectedTopIdx = chosenSelection.top;
+                state.selectedLeftIdx = chosenSelection.left;
+                renderPlots();
+                renderPool();
+                updatePreRevealUI();
+                
+                setTimeout(() => { triggerPokeyMachineReveal(); }, 1000);
+            }, 1200);
+        }
+
+        function replaceUsedFactors(idx1, idx2) {
+            let preserved = [];
+            for(let i=0; i<6; i++) { if(i !== idx1 && i !== idx2) preserved.push(state.pool[i]); }
+            let unclaimedPlots = state.plots.filter(p => p.claimed === null);
+            if (unclaimedPlots.length === 0) return;
+
+            let validRefillFound = false;
+            let attempts = 0;
+            while (!validRefillFound && attempts < 100) {
+                attempts++;
+                let testReplacements = [
+                    baseFactorLibrary[Math.floor(Math.random() * baseFactorLibrary.length)],
+                    baseFactorLibrary[Math.floor(Math.random() * baseFactorLibrary.length)]
+                ];
+                let potentialPool = [...preserved, ...testReplacements];
+
+                for (let plot of unclaimedPlots) {
+                    let f1_idx = potentialPool.indexOf(plot.f1);
+                    if (f1_idx !== -1) {
+                        let tempPool = [...potentialPool];
+                        tempPool.splice(f1_idx, 1);
+                        if (tempPool.indexOf(plot.f2) !== -1) {
+                            validRefillFound = true;
+                            state.pool = potentialPool;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!validRefillFound) {
+                let rescuePlot = unclaimedPlots[Math.floor(Math.random() * unclaimedPlots.length)];
+                state.pool = [...preserved, rescuePlot.f1, rescuePlot.f2];
+            }
+        }
+
+        function parseFactor(str) {
+            let clean = str.replace(/\s+/g, '');
+            let xCoef = 1, xStr = "x";
+            if (clean.startsWith('2x')) { xCoef = 2; xStr = "2x"; clean = clean.substring(2); }
+            else if (clean.startsWith('x')) { xCoef = 1; xStr = "x"; clean = clean.substring(1); }
+            let constVal = parseInt(clean);
+            return { xCoef, constVal, xStr, cStr: constVal >= 0 ? `+${constVal}` : `${constVal}` };
+        }
+
+        function updateUI() {
+            document.getElementById('p1-score').innerText = state.scores[1];
+            document.getElementById('p2-score').innerText = state.scores[2];
+            
+            let activeName = state.playerNames[state.currentPlayer];
+            document.getElementById('current-player').innerText = activeName;
+            
+            let displayTurn = document.getElementById('current-player').parentElement;
+            displayTurn.className = state.currentPlayer === 1 
+                ? "bg-blue-600/20 px-4 py-2 rounded-lg border border-blue-500 text-blue-400"
+                : "bg-purple-600/20 px-4 py-2 rounded-lg border border-purple-500 text-purple-400";
+        }
+
+        function checkGameOver() {
+            let remaining = state.plots.filter(p => p.claimed === null);
+            if (remaining.length === 0) {
+                stopTurnClock();
+                document.getElementById('timer-container').classList.add('hidden');
+
+                let headline = "It's a Draw!";
+                let subline = `Both players tied at ${state.scores[1]} points.`;
+                
+                if (state.scores[1] > state.scores[2]) {
+                    headline = `🎉 ${state.playerNames[1]} Wins!`;
+                    subline = `${state.playerNames[1]} dominated the map with ${state.scores[1]} points to ${state.scores[2]}.`;
+                } else if (state.scores[2] > state.scores[1]) {
+                    headline = `🎉 ${state.playerNames[2]} Wins!`;
+                    subline = `${state.playerNames[2]} claimed victory with ${state.scores[2]} points to ${state.scores[1]}.`;
+                }
+
+                document.getElementById('winner-headline').innerText = headline;
+                document.getElementById('winner-subline').innerText = subline;
+                document.getElementById('celebration-modal').classList.remove('hidden');
+                
+                startConfetti();
+                return true;
+            }
+            return false;
+        }
+
+        let confettiInterval = null;
+        function startConfetti() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const colors = ['#3b82f6', '#a855f7', '#10b981', '#f59e0b', '#ef4444'];
+            
+            confettiInterval = setInterval(() => {
+                const el = document.createElement('div');
+                el.className = 'confetti';
+                el.style.left = Math.random() * 100 + 'vw';
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                el.style.transform = `scale(${Math.random() * 0.6 + 0.4})`;
+                el.style.animationDuration = (Math.random() * 1.5 + 1.5) + 's';
+                container.appendChild(el);
+                
+                setTimeout(() => el.remove(), 3000);
+            }, 80);
+        }
+
+        function stopConfetti() {
+            clearInterval(confettiInterval);
+            document.getElementById('confetti-container').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
