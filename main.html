@@ -337,6 +337,7 @@
             }
         }
 
+        // FIXED FORFEIT FUNCTION: Cleanly resets active targets, locks inputs, and advances turn smoothly.
         function handleTurnForfeitTimeout() {
             stopTurnClock();
             state.isSpinning = false;
@@ -345,15 +346,18 @@
             let failedPlayer = state.playerNames[state.currentPlayer];
             document.getElementById('calculation-output').innerHTML = `<span class="text-rose-400 font-bold">⏰ TIME EXPIRED! ${failedPlayer} forfeited their turn.</span>`;
             
+            // Instantly clear selections so inputs aren't locked for the next player
+            state.selectedPlotId = null;
+            state.selectedTopIdx = null;
+            state.selectedLeftIdx = null;
+            
+            // Re-render UI tiles with disabled select classes stripped
+            renderPlots();
+            renderPool();
+            clearMatrixUI();
+
             setTimeout(() => {
                 state.currentPlayer = state.currentPlayer === 1 ? 2 : 1;
-                state.selectedPlotId = null;
-                state.selectedTopIdx = null;
-                state.selectedLeftIdx = null;
-                
-                renderPlots();
-                renderPool();
-                clearMatrixUI();
                 updateUI();
                 initiateTurnCycle();
             }, 2000);
@@ -441,7 +445,7 @@
             } else if (state.selectedLeftIdx === null) {
                 state.selectedLeftIdx = idx;
                 renderPool();
-                stopTurnClock(); 
+                stopTurnClock(); // Lock clock once confirmation starts
                 triggerPokeyMachineReveal();
             }
         }
